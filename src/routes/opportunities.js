@@ -105,6 +105,7 @@ router.put('/:id', [
 });
 
 // Delete opportunity (admin only)
+// Delete opportunity (admin only)
 router.delete('/:id', adminAuth, async (req, res) => {
   try {
     const opportunity = await Opportunity.findById(req.params.id);
@@ -112,7 +113,7 @@ router.delete('/:id', adminAuth, async (req, res) => {
       return res.status(404).json({ message: 'Opportunity not found' });
     }
 
-    await opportunity.remove();
+    await Opportunity.findByIdAndDelete(req.params.id);
     res.json({ message: 'Opportunity deleted' });
   } catch (err) {
     res.status(500).json({ message: err.message });
