@@ -10,6 +10,7 @@ const opportunityRoutes = require('./routes/opportunities');
 const adminAuthRoutes = require('./routes/admin');
 const authRoutes = require('./routes/auth');
 const profileRoutes = require('./routes/profile');
+const userRoutes = require('./routes/users');
 
 const app = express();
 
@@ -27,6 +28,7 @@ app.use('/api/opportunities', opportunityRoutes);
 app.use('/api/admin', adminAuthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/users', userRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

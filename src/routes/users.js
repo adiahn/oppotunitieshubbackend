@@ -3,6 +3,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const bcrypt = require('bcryptjs');
 const adminAuth = require('../middleware/adminAuth');
+const User = require('../models/User');
 
 // @route   GET /api/users/me
 // @desc    Get current user
@@ -67,6 +68,36 @@ router.put('/:id/reset-password', adminAuth, async (req, res) => {
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
+  }
+});
+
+// Get all users (publicly viewable)
+// Only return essential public profile information
+router.get('/', async (req, res) => {
+  try {
+    const users = await User.find().select('-password -__v -email -createdAt -updatedAt'); // Exclude sensitive fields
+    res.json(users);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get a single user's profile by ID (publicly viewable)
+// Only return essential public profile information
+router.get('/:id', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select('-password -__v -email -createdAt -updatedAt'); // Exclude sensitive fields
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.json(user);
+  } catch (error) {
+    console.error(error);
+    if (error.kind === 'ObjectId') {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
