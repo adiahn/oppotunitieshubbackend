@@ -8,6 +8,7 @@ const connectDB = require('./config/db');
 
 const opportunityRoutes = require('./routes/opportunities');
 const adminAuthRoutes = require('./routes/admin');
+const authRoutes = require('./routes/auth');
 
 const app = express();
 
@@ -23,6 +24,7 @@ app.use(morgan('dev'));
 // Routes
 app.use('/api/opportunities', opportunityRoutes);
 app.use('/api/admin', adminAuthRoutes);
+app.use('/api/auth', authRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

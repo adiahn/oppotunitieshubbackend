@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
+const bcrypt = require('bcryptjs');
+const adminAuth = require('../middleware/adminAuth');
 
 // @route   GET /api/users/me
 // @desc    Get current user
@@ -39,6 +41,29 @@ router.put('/profile', auth, async (req, res) => {
     ).select('-password');
 
     res.json(user);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   PUT /api/users/:id/reset-password
+// @desc    Admin resets a user's password
+// @access  Private (admin only)
+router.put('/:id/reset-password', adminAuth, async (req, res) => {
+  try {
+    const { newPassword } = req.body;
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ message: 'New password must be at least 6 characters long' });
+    }
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+    await user.save();
+    res.json({ message: 'User password reset successfully' });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');

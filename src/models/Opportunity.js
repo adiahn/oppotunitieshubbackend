@@ -13,7 +13,7 @@ const opportunitySchema = new mongoose.Schema({
   category: {
     type: String,
     required: true,
-    enum: ['scholarship', 'internship', 'job', 'fellowship', 'competition']
+    enum: ['scholarship', 'internship', 'job', 'fellowship', 'competition', 'grant', 'workshop']
   },
   organization: {
     type: String,
@@ -40,6 +40,14 @@ const opportunitySchema = new mongoose.Schema({
   isFeatured: {
     type: Boolean,
     default: false
+  },
+  isTrending: {
+    type: Boolean,
+    default: false
+  },
+  views: {
+    type: Number,
+    default: 0
   },
   status: {
     type: String,
