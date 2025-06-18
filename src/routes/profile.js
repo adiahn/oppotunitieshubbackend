@@ -205,4 +205,30 @@ router.post('/regenerate-avatar', auth, async (req, res) => {
     }
 });
 
+// @route   GET /api/profile/basic
+// @desc    Get basic profile details for the authenticated user
+// @access  Private
+router.get('/basic', auth, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id, {
+            name: 1,
+            'profile.bio': 1,
+            'profile.location': 1,
+            stars: 1
+        });
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        res.json({
+            name: user.name,
+            bio: user.profile.bio,
+            location: user.profile.location,
+            stars: user.stars
+        });
+    } catch (error) {
+        console.error('Error fetching basic profile:', error);
+        res.status(500).json({ message: 'Server error fetching basic profile' });
+    }
+});
+
 module.exports = router; 
