@@ -127,11 +127,15 @@ const userSchema = new mongoose.Schema({
     avatar: {
       initials: {
         type: String,
-        required: true
+        default: function() {
+          return generateAvatarData(this.parent().parent().name).initials;
+        }
       },
       backgroundColor: {
         type: String,
-        required: true
+        default: function() {
+          return generateAvatarData(this.parent().parent().name).backgroundColor;
+        }
       }
     },
     bio: {

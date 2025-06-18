@@ -3,6 +3,7 @@ const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { generateAvatarData } = require('../utils/avatarUtils');
 
 // Register route
 router.post('/register', [
@@ -25,11 +26,17 @@ router.post('/register', [
       return res.status(400).json({ message: 'User already exists' });
     }
 
+    // Generate avatar data
+    const avatarData = generateAvatarData(name);
+
     // Create new user
     user = new User({
       email,
       password,
-      name
+      name,
+      profile: {
+        avatar: avatarData
+      }
     });
 
     await user.save();
@@ -46,7 +53,10 @@ router.post('/register', [
       user: {
         id: user._id,
         email: user.email,
-        name: user.name
+        name: user.name,
+        profile: {
+          avatar: user.profile.avatar
+        }
       }
     });
   } catch (error) {
@@ -93,7 +103,10 @@ router.post('/login', [
       user: {
         id: user._id,
         email: user.email,
-        name: user.name
+        name: user.name,
+        profile: {
+          avatar: user.profile.avatar
+        }
       }
     });
   } catch (error) {
