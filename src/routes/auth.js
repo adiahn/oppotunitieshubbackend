@@ -4,6 +4,7 @@ const { body, validationResult } = require('express-validator');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { generateAvatarData } = require('../utils/avatarUtils');
+const auth = require('../middleware/auth');
 
 // Register route
 router.post('/register', [
@@ -41,11 +42,11 @@ router.post('/register', [
 
     await user.save();
 
-    // Create JWT token
+    // Create JWT token with 7 days expiration
     const token = jwt.sign(
       { userId: user._id },
       process.env.JWT_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: '7d' }
     );
 
     res.status(201).json({
@@ -91,11 +92,11 @@ router.post('/login', [
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-    // Create JWT token
+    // Create JWT token with 7 days expiration
     const token = jwt.sign(
       { userId: user._id },
       process.env.JWT_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: '7d' }
     );
 
     res.json({
@@ -111,6 +112,32 @@ router.post('/login', [
     });
   } catch (error) {
     console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   GET /api/auth/validate
+// @desc    Validate token and return user data
+// @access  Private
+router.get('/validate', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    res.json({
+      user: {
+        id: user._id,
+        email: user.email,
+        name: user.name,
+        profile: {
+          avatar: user.profile.avatar
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Token validation error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
