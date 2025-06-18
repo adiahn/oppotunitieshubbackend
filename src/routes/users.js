@@ -75,7 +75,7 @@ router.put('/:id/reset-password', adminAuth, async (req, res) => {
 // Only return essential public profile information
 router.get('/', async (req, res) => {
   try {
-    const users = await User.find().select('-password -__v -email -createdAt -updatedAt'); // Exclude sensitive fields
+    const users = await User.find().select('-password -__v -createdAt -updatedAt -email'); // Exclude sensitive fields
     res.json(users);
   } catch (error) {
     console.error(error);
@@ -87,7 +87,7 @@ router.get('/', async (req, res) => {
 // Only return essential public profile information
 router.get('/:id', async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select('-password -__v -email -createdAt -updatedAt'); // Exclude sensitive fields
+    const user = await User.findById(req.params.id).select('-password -__v -createdAt -updatedAt -email'); // Exclude sensitive fields
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -98,6 +98,61 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   POST /api/users/check-in
+// @desc    Handle daily check-in and XP reward
+// @access  Private
+router.post('/check-in', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const result = await user.handleDailyCheckIn();
+    if (!result.success) {
+      return res.status(400).json({ message: result.message });
+    }
+
+    await user.save();
+
+    res.json({
+      message: result.message,
+      xp: user.xp,
+      level: user.level,
+      stars: user.stars,
+      streak: {
+        current: user.streak.current,
+        longest: user.streak.longest
+      }
+    });
+  } catch (error) {
+    console.error('Check-in error:', error);
+    res.status(500).json({ message: 'Server error during check-in' });
+  }
+});
+
+// @route   GET /api/users/:userId
+// @desc    Get detailed user profile for community view
+// @access  Public
+router.get('/:userId', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId, {
+      password: 0,
+      email: 0,
+      // Exclude sensitive information
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json(user);
+  } catch (error) {
+    console.error('User profile fetch error:', error);
+    res.status(500).json({ message: 'Server error while fetching user profile' });
   }
 });
 

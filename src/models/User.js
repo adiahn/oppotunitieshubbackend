@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const { generateAvatarData } = require('../utils/avatarUtils');
 
 const skillSchema = new mongoose.Schema({
   name: {
@@ -90,7 +91,49 @@ const userSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  xp: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  level: {
+    type: String,
+    enum: ['Newcomer', 'Explorer', 'Contributor', 'Collaborator', 'Achiever', 'Expert', 'Legend'],
+    default: 'Newcomer'
+  },
+  stars: {
+    type: Number,
+    default: 1,
+    min: 1,
+    max: 7
+  },
+  streak: {
+    current: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    longest: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    lastCheckIn: {
+      type: Date,
+      default: null
+    }
+  },
   profile: {
+    avatar: {
+      initials: {
+        type: String,
+        required: true
+      },
+      backgroundColor: {
+        type: String,
+        required: true
+      }
+    },
     bio: {
       type: String,
       trim: true
@@ -110,6 +153,21 @@ const userSchema = new mongoose.Schema({
     linkedin: {
       type: String,
       trim: true
+    },
+    phoneNumber: {
+      type: String,
+      trim: true
+    },
+    contactEmail: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      validate: {
+        validator: function(v) {
+          return /^\S+@\S+\.\S+$/.test(v); // Basic email format validation
+        },
+        message: props => `${props.value} is not a valid email address!`
+      }
     },
     skills: [skillSchema],
     projects: [projectSchema],
@@ -199,12 +257,86 @@ userSchema.pre('save', async function(next) {
 // Update the updatedAt timestamp before saving
 userSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
+  if (this.isModified('name')) {
+    const avatarData = generateAvatarData(this.name);
+    this.profile.avatar = avatarData;
+  }
   next();
 });
 
 // Method to compare password
 userSchema.methods.comparePassword = async function(candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
+};
+
+// Helper method to update level based on XP
+userSchema.methods.updateLevel = function() {
+  const xpThresholds = {
+    20: { level: 'Explorer', stars: 2 },
+    50: { level: 'Contributor', stars: 3 },
+    100: { level: 'Collaborator', stars: 4 },
+    200: { level: 'Achiever', stars: 5 },
+    400: { level: 'Expert', stars: 6 },
+    700: { level: 'Legend', stars: 7 }
+  };
+
+  // Sort thresholds in descending order to check highest applicable level first
+  const sortedThresholds = Object.entries(xpThresholds)
+    .sort(([a], [b]) => Number(b) - Number(a));
+
+  // Find the highest threshold that the user's XP meets
+  for (const [threshold, { level, stars }] of sortedThresholds) {
+    if (this.xp >= Number(threshold)) {
+      this.level = level;
+      this.stars = stars;
+      break;
+    }
+  }
+};
+
+// Method to handle daily check-in
+userSchema.methods.handleDailyCheckIn = async function() {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  
+  // If this is the first check-in
+  if (!this.streak.lastCheckIn) {
+    this.streak.current = 1;
+    this.streak.longest = 1;
+    this.xp += 2;
+    this.streak.lastCheckIn = now;
+    await this.updateLevel();
+    return { success: true, message: 'First check-in completed!' };
+  }
+
+  const lastCheckIn = new Date(this.streak.lastCheckIn);
+  const lastCheckInDate = new Date(lastCheckIn.getFullYear(), lastCheckIn.getMonth(), lastCheckIn.getDate());
+  const daysDifference = Math.floor((today - lastCheckInDate) / (1000 * 60 * 60 * 24));
+
+  // If already checked in today
+  if (daysDifference === 0) {
+    return { success: false, message: 'Already checked in today.' };
+  }
+
+  // If checked in yesterday, increment streak
+  if (daysDifference === 1) {
+    this.streak.current += 1;
+    if (this.streak.current > this.streak.longest) {
+      this.streak.longest = this.streak.current;
+    }
+  } else {
+    // Streak broken
+    this.streak.current = 1;
+  }
+
+  this.xp += 2;
+  this.streak.lastCheckIn = now;
+  await this.updateLevel();
+  
+  return { 
+    success: true, 
+    message: daysDifference === 1 ? 'Streak continued!' : 'New streak started!' 
+  };
 };
 
 const User = mongoose.model('User', userSchema);

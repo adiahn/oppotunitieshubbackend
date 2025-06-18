@@ -3,6 +3,7 @@ const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const auth = require('../middleware/auth');
 const User = require('../models/User');
+const { generateAvatarData } = require('../utils/avatarUtils');
 
 // Get user profile
 router.get('/', auth, async (req, res) => {
@@ -21,7 +22,9 @@ router.put('/basic', [
   body('location').optional().trim(),
   body('website').optional().trim(),
   body('github').optional().trim(),
-  body('linkedin').optional().trim()
+  body('linkedin').optional().trim(),
+  body('phoneNumber').optional().trim(),
+  body('contactEmail').optional().isEmail().withMessage('Please enter a valid contact email')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -29,7 +32,7 @@ router.put('/basic', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { bio, location, website, github, linkedin } = req.body;
+    const { bio, location, website, github, linkedin, phoneNumber, contactEmail } = req.body;
     const user = await User.findById(req.user._id);
 
     user.profile = {
@@ -38,7 +41,9 @@ router.put('/basic', [
       location,
       website,
       github,
-      linkedin
+      linkedin,
+      phoneNumber,
+      contactEmail
     };
 
     await user.save();
@@ -174,6 +179,30 @@ router.put('/work-experience', [
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }
+});
+
+// @route   POST /api/profile/regenerate-avatar
+// @desc    Regenerate user's avatar (in case it's missing)
+// @access  Private
+router.post('/regenerate-avatar', auth, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        const avatarData = generateAvatarData(user.name);
+        user.profile.avatar = avatarData;
+        await user.save();
+
+        res.json({
+            message: 'Avatar regenerated successfully',
+            avatar: user.profile.avatar
+        });
+    } catch (error) {
+        console.error('Avatar regeneration error:', error);
+        res.status(500).json({ message: 'Error regenerating avatar' });
+    }
 });
 
 module.exports = router; 
