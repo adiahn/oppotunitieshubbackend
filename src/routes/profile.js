@@ -214,7 +214,7 @@ router.get('/basic', auth, async (req, res) => {
             name: 1,
             'profile.bio': 1,
             'profile.location': 1,
-            stars: 1
+            level: 1
         });
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
@@ -223,7 +223,7 @@ router.get('/basic', auth, async (req, res) => {
             name: user.name,
             bio: user.profile.bio,
             location: user.profile.location,
-            stars: user.stars
+            level: user.level
         });
     } catch (error) {
         console.error('Error fetching basic profile:', error);
