@@ -91,53 +91,7 @@ const userSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
-  xp: {
-    type: Number,
-    default: 0,
-    min: 0
-  },
-  level: {
-    type: String,
-    enum: ['Newcomer', 'Explorer', 'Contributor', 'Collaborator', 'Achiever', 'Expert', 'Legend'],
-    default: 'Newcomer'
-  },
-  stars: {
-    type: Number,
-    default: 1,
-    min: 1,
-    max: 7
-  },
-  streak: {
-    current: {
-      type: Number,
-      default: 0,
-      min: 0
-    },
-    longest: {
-      type: Number,
-      default: 0,
-      min: 0
-    },
-    lastCheckIn: {
-      type: Date,
-      default: null
-    }
-  },
   profile: {
-    avatar: {
-      initials: {
-        type: String,
-        default: function() {
-          return generateAvatarData(this.parent().parent().name).initials;
-        }
-      },
-      backgroundColor: {
-        type: String,
-        default: function() {
-          return generateAvatarData(this.parent().parent().name).backgroundColor;
-        }
-      }
-    },
     bio: {
       type: String,
       trim: true
@@ -235,6 +189,38 @@ const userSchema = new mongoose.Schema({
       }
     }]
   },
+  xp: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  level: {
+    type: String,
+    enum: ['Newcomer', 'Explorer', 'Contributor', 'Collaborator', 'Achiever', 'Expert', 'Legend'],
+    default: 'Newcomer'
+  },
+  stars: {
+    type: Number,
+    default: 1,
+    min: 1,
+    max: 7
+  },
+  streak: {
+    current: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    longest: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    lastCheckIn: {
+      type: Date,
+      default: null
+    }
+  },
   createdAt: {
     type: Date,
     default: Date.now
@@ -261,10 +247,6 @@ userSchema.pre('save', async function(next) {
 // Update the updatedAt timestamp before saving
 userSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
-  if (this.isModified('name')) {
-    const avatarData = generateAvatarData(this.name);
-    this.profile.avatar = avatarData;
-  }
   next();
 });
 
