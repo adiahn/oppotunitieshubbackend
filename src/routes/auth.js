@@ -4,7 +4,7 @@ const { body, validationResult } = require('express-validator');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { generateAvatarData } = require('../utils/avatarUtils');
-const auth = require('../middleware/auth');
+const { auth, blacklistToken } = require('../middleware/auth');
 
 // Register route
 router.post('/register', [
@@ -150,11 +150,9 @@ router.post('/logout', auth, async (req, res) => {
     // Get the token from the request header
     const token = req.header('x-auth-token');
     
-    // Add token to blacklist (you can use Redis or a simple in-memory store)
-    // For now, we'll use a simple approach - you can enhance this later
+    // Add token to blacklist
     if (token) {
-      // You could store this in Redis or a database for production
-      // For now, we'll just return success and let the frontend handle cleanup
+      blacklistToken(token);
       console.log(`Token logged out: ${token.substring(0, 20)}...`);
     }
     
