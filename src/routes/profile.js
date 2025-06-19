@@ -213,7 +213,7 @@ router.get('/basic', auth, async (req, res) => {
         const user = await User.findById(req.user.id, {
             name: 1,
             'profile.bio': 1,
-            'profile.location': 1,
+            'profile.lGIT cation': 1,
             level: 1
         });
         if (!user) {
