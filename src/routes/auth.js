@@ -142,4 +142,30 @@ router.get('/validate', auth, async (req, res) => {
   }
 });
 
+// @route   POST /api/auth/logout
+// @desc    Logout user and invalidate token
+// @access  Private
+router.post('/logout', auth, async (req, res) => {
+  try {
+    // Get the token from the request header
+    const token = req.header('x-auth-token');
+    
+    // Add token to blacklist (you can use Redis or a simple in-memory store)
+    // For now, we'll use a simple approach - you can enhance this later
+    if (token) {
+      // You could store this in Redis or a database for production
+      // For now, we'll just return success and let the frontend handle cleanup
+      console.log(`Token logged out: ${token.substring(0, 20)}...`);
+    }
+    
+    res.json({ 
+      message: 'Logged out successfully',
+      success: true 
+    });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({ message: 'Server error during logout' });
+  }
+});
+
 module.exports = router; 

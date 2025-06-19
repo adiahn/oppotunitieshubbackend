@@ -182,4 +182,25 @@ router.delete('/:id', adminAuth, async (req, res) => {
   }
 });
 
+// @route   POST /api/admin/logout
+// @desc    Admin logout (client-side token cleanup)
+// @access  Private
+router.post('/logout', adminAuth, async (req, res) => {
+  try {
+    // Since JWT tokens are stateless, the main logout happens on the client side
+    // by removing the token from storage. This endpoint can be used for:
+    // 1. Server-side logging
+    // 2. Future token blacklisting implementation
+    // 3. Confirmation to the client that logout was successful
+    
+    res.json({ 
+      message: 'Admin logged out successfully',
+      success: true 
+    });
+  } catch (error) {
+    console.error('Admin logout error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 module.exports = router; 
