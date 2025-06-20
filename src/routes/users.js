@@ -134,26 +134,4 @@ router.post('/check-in', auth, async (req, res) => {
   }
 });
 
-// @route   GET /api/users/:userId
-// @desc    Get detailed user profile for community view
-// @access  Public
-router.get('/:userId', async (req, res) => {
-  try {
-    const user = await User.findById(req.params.userId, {
-      password: 0,
-      email: 0,
-      // Exclude sensitive information
-    });
-
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    res.json(user);
-  } catch (error) {
-    console.error('User profile fetch error:', error);
-    res.status(500).json({ message: 'Server error while fetching user profile' });
-  }
-});
-
 module.exports = router; 

@@ -45,9 +45,6 @@ router.get('/leaderboard', async (req, res) => {
   }
 });
 
-// @route   GET /api/community/search
-// @desc    Search users by name
-// @access  Public
 router.get('/search', async (req, res) => {
   try {
     const { q: searchQuery, page = 1, limit = 10 } = req.query;

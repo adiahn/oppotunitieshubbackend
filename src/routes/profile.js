@@ -3,16 +3,41 @@ const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const { auth } = require('../middleware/auth');
 const User = require('../models/User');
-const { generateAvatarData } = require('../utils/avatarUtils');
 
 // Get user profile
 router.get('/', auth, async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select('-password');
+    const user = await User.findById(req.user.id).select('-password');
     res.json(user);
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }
+});
+
+// @route   GET /api/profile/basic
+// @desc    Get basic profile details for the authenticated user
+// @access  Private
+router.get('/basic', auth, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id, {
+            name: 1,
+            'profile.bio': 1,
+            'profile.location': 1,
+            level: 1
+        });
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        res.json({
+            name: user.name,
+            bio: user.profile.bio,
+            location: user.profile.location,
+            level: user.level
+        });
+    } catch (error) {
+        console.error('Error fetching basic profile:', error);
+        res.status(500).json({ message: 'Server error fetching basic profile' });
+    }
 });
 
 // Update basic profile info
@@ -33,23 +58,35 @@ router.put('/basic', [
     }
 
     const { bio, location, website, github, linkedin, phoneNumber, contactEmail } = req.body;
-    const user = await User.findById(req.user._id);
+    const user = await User.findById(req.user.id);
 
-    user.profile = {
-      ...user.profile,
-      bio,
-      location,
-      website,
-      github,
-      linkedin,
-      phoneNumber,
-      contactEmail
-    };
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Update only the fields that are provided
+    if (bio !== undefined) user.profile.bio = bio;
+    if (location !== undefined) user.profile.location = location;
+    if (website !== undefined) user.profile.website = website;
+    if (github !== undefined) user.profile.github = github;
+    if (linkedin !== undefined) user.profile.linkedin = linkedin;
+    if (phoneNumber !== undefined) user.profile.phoneNumber = phoneNumber;
+    if (contactEmail !== undefined) user.profile.contactEmail = contactEmail;
 
     await user.save();
-    res.json(user);
+    
+    res.json({
+      message: 'Profile updated successfully',
+      user: {
+        name: user.name,
+        bio: user.profile.bio,
+        location: user.profile.location,
+        level: user.level
+      }
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    console.error('Profile update error:', error);
+    res.status(500).json({ message: 'Server error updating profile' });
   }
 });
 
@@ -67,7 +104,7 @@ router.put('/skills', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const user = await User.findById(req.user._id);
+    const user = await User.findById(req.user.id);
     user.profile.skills = req.body.skills;
     await user.save();
     res.json(user.profile.skills);
@@ -94,7 +131,7 @@ router.put('/projects', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const user = await User.findById(req.user._id);
+    const user = await User.findById(req.user.id);
     user.profile.projects = req.body.projects;
     await user.save();
     res.json(user.profile.projects);
@@ -119,7 +156,7 @@ router.put('/achievements', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const user = await User.findById(req.user._id);
+    const user = await User.findById(req.user.id);
     user.profile.achievements = req.body.achievements;
     await user.save();
     res.json(user.profile.achievements);
@@ -146,7 +183,7 @@ router.put('/education', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const user = await User.findById(req.user._id);
+    const user = await User.findById(req.user.id);
     user.profile.education = req.body.education;
     await user.save();
     res.json(user.profile.education);
@@ -172,62 +209,13 @@ router.put('/work-experience', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const user = await User.findById(req.user._id);
+    const user = await User.findById(req.user.id);
     user.profile.workExperience = req.body.workExperience;
     await user.save();
     res.json(user.profile.workExperience);
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }
-});
-
-// @route   POST /api/profile/regenerate-avatar
-// @desc    Regenerate user's avatar (in case it's missing)
-// @access  Private
-router.post('/regenerate-avatar', auth, async (req, res) => {
-    try {
-        const user = await User.findById(req.user.id);
-        if (!user) {
-            return res.status(404).json({ message: 'User not found' });
-        }
-
-        const avatarData = generateAvatarData(user.name);
-        user.profile.avatar = avatarData;
-        await user.save();
-
-        res.json({
-            message: 'Avatar regenerated successfully',
-            avatar: user.profile.avatar
-        });
-    } catch (error) {
-        console.error('Avatar regeneration error:', error);
-        res.status(500).json({ message: 'Error regenerating avatar' });
-    }
-});
-
-router.get('/basic', auth, async (req, res) => {
-    try {
-        const user = await User.findById(req.user.id, {
-            name: 1,
-            'profile.bio': 1,
-            'profile.location': 1,
-            level: 1,
-            bio: 1,
-            location: 1,
-        });
-        if (!user) {
-            return res.status(404).json({ message: 'User not found' });
-        }
-        res.json({
-            name: user.name,
-            bio: user.profile.bio,
-            location: user.profile.location,
-            level: user.level
-        });
-    } catch (error) {
-        console.error('Error fetching basic profile:', error);
-        res.status(500).json({ message: 'Server error fetching basic profile' });
-    }
 });
 
 module.exports = router; 
