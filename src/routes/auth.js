@@ -3,7 +3,14 @@ const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const RefreshToken = require('../models/RefreshToken');
 const { auth, blacklistToken } = require('../middleware/auth');
+const { 
+  generateAccessToken, 
+  generateRefreshToken, 
+  verifyAccessToken,
+  isTokenExpired 
+} = require('../utils/tokenUtils');
 
 // Register route
 router.post('/register', [
@@ -35,15 +42,21 @@ router.post('/register', [
 
     await user.save();
 
-    // Create JWT token with 7 days expiration
-    const token = jwt.sign(
-      { userId: user._id },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+    // Generate tokens
+    const accessToken = generateAccessToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
+
+    // Save refresh token to database
+    const refreshTokenDoc = new RefreshToken({
+      token: refreshToken,
+      userId: user._id,
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+    });
+    await refreshTokenDoc.save();
 
     res.status(201).json({
-      token,
+      accessToken,
+      refreshToken,
       user: {
         id: user._id,
         email: user.email,
@@ -82,15 +95,21 @@ router.post('/login', [
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-    // Create JWT token with 7 days expiration
-    const token = jwt.sign(
-      { userId: user._id },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+    // Generate tokens
+    const accessToken = generateAccessToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
+
+    // Save refresh token to database
+    const refreshTokenDoc = new RefreshToken({
+      token: refreshToken,
+      userId: user._id,
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+    });
+    await refreshTokenDoc.save();
 
     res.json({
-      token,
+      accessToken,
+      refreshToken,
       user: {
         id: user._id,
         email: user.email,
@@ -100,6 +119,99 @@ router.post('/login', [
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   POST /api/auth/refresh
+// @desc    Refresh access token using refresh token
+// @access  Public
+router.post('/refresh', [
+  body('refreshToken').notEmpty().withMessage('Refresh token is required')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { refreshToken } = req.body;
+
+    // Find refresh token in database
+    const refreshTokenDoc = await RefreshToken.findOne({
+      token: refreshToken,
+      isRevoked: false
+    });
+
+    if (!refreshTokenDoc) {
+      return res.status(401).json({ 
+        message: 'Invalid refresh token',
+        code: 'INVALID_REFRESH_TOKEN'
+      });
+    }
+
+    // Check if refresh token is expired
+    if (refreshTokenDoc.expiresAt < new Date()) {
+      return res.status(401).json({ 
+        message: 'Refresh token expired',
+        code: 'REFRESH_TOKEN_EXPIRED'
+      });
+    }
+
+    // Get user
+    const user = await User.findById(refreshTokenDoc.userId);
+    if (!user) {
+      return res.status(401).json({ 
+        message: 'User not found',
+        code: 'USER_NOT_FOUND'
+      });
+    }
+
+    // Generate new access token
+    const newAccessToken = generateAccessToken(user._id);
+
+    res.json({
+      accessToken: newAccessToken,
+      user: {
+        id: user._id,
+        email: user.email,
+        name: user.name
+      }
+    });
+  } catch (error) {
+    console.error('Token refresh error:', error);
+    res.status(500).json({ message: 'Server error during token refresh' });
+  }
+});
+
+// @route   POST /api/auth/revoke-refresh
+// @desc    Revoke a refresh token (logout from specific device)
+// @access  Private
+router.post('/revoke-refresh', auth, [
+  body('refreshToken').notEmpty().withMessage('Refresh token is required')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { refreshToken } = req.body;
+
+    // Find and revoke refresh token
+    const refreshTokenDoc = await RefreshToken.findOne({
+      token: refreshToken,
+      userId: req.user.id
+    });
+
+    if (refreshTokenDoc) {
+      refreshTokenDoc.isRevoked = true;
+      await refreshTokenDoc.save();
+    }
+
+    res.json({ message: 'Refresh token revoked successfully' });
+  } catch (error) {
+    console.error('Token revocation error:', error);
+    res.status(500).json({ message: 'Server error during token revocation' });
   }
 });
 
@@ -127,17 +239,34 @@ router.get('/validate', auth, async (req, res) => {
 });
 
 // @route   POST /api/auth/logout
-// @desc    Logout user and invalidate token
+// @desc    Logout user and invalidate tokens
 // @access  Private
-router.post('/logout', auth, async (req, res) => {
+router.post('/logout', auth, [
+  body('refreshToken').optional()
+], async (req, res) => {
   try {
-    // Get the token from the request header
-    const token = req.header('x-auth-token');
+    // Get the access token from the request header
+    const accessToken = req.header('x-auth-token');
     
-    // Add token to blacklist
-    if (token) {
-      blacklistToken(token);
-      console.log(`Token logged out: ${token.substring(0, 20)}...`);
+    // Add access token to blacklist
+    if (accessToken) {
+      blacklistToken(accessToken);
+      console.log(`Access token logged out: ${accessToken.substring(0, 20)}...`);
+    }
+
+    // Revoke refresh token if provided
+    const { refreshToken } = req.body;
+    if (refreshToken) {
+      const refreshTokenDoc = await RefreshToken.findOne({
+        token: refreshToken,
+        userId: req.user.id
+      });
+
+      if (refreshTokenDoc) {
+        refreshTokenDoc.isRevoked = true;
+        await refreshTokenDoc.save();
+        console.log(`Refresh token revoked: ${refreshToken.substring(0, 20)}...`);
+      }
     }
     
     res.json({ 
