@@ -5,6 +5,8 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const RefreshToken = require('../models/RefreshToken');
 const { auth, blacklistToken } = require('../middleware/auth');
+const { authLimiter, registrationLimiter } = require('../middleware/rateLimiter');
+const { validatePassword } = require('../utils/passwordUtils');
 const { 
   generateAccessToken, 
   generateRefreshToken, 
@@ -12,11 +14,12 @@ const {
   isTokenExpired 
 } = require('../utils/tokenUtils');
 
-// Register route
+// Register route with rate limiting and password validation
 router.post('/register', [
-  body('email').isEmail().withMessage('Please enter a valid email'),
-  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
-  body('name').notEmpty().withMessage('Name is required')
+  registrationLimiter,
+  body('email').isEmail().normalizeEmail().withMessage('Please enter a valid email'),
+  body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters long'),
+  body('name').trim().isLength({ min: 2, max: 50 }).withMessage('Name must be between 2 and 50 characters')
 ], async (req, res) => {
   try {
     // Validate request
@@ -27,10 +30,22 @@ router.post('/register', [
 
     const { email, password, name } = req.body;
 
+    // Validate password strength
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.isValid) {
+      return res.status(400).json({ 
+        message: 'Password does not meet security requirements',
+        errors: passwordValidation.errors 
+      });
+    }
+
     // Check if user already exists
     let user = await User.findOne({ email });
     if (user) {
-      return res.status(400).json({ message: 'User already exists' });
+      return res.status(400).json({ 
+        message: 'User already exists',
+        code: 'USER_EXISTS'
+      });
     }
 
     // Create new user
@@ -64,14 +79,18 @@ router.post('/register', [
       }
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Registration error:', error);
+    res.status(500).json({ 
+      message: 'Server error during registration',
+      code: 'REGISTRATION_ERROR'
+    });
   }
 });
 
-// Login route
+// Login route with rate limiting
 router.post('/login', [
-  body('email').isEmail().withMessage('Please enter a valid email'),
+  authLimiter,
+  body('email').isEmail().normalizeEmail().withMessage('Please enter a valid email'),
   body('password').exists().withMessage('Password is required')
 ], async (req, res) => {
   try {
@@ -86,13 +105,19 @@ router.post('/login', [
     // Check if user exists
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+      return res.status(400).json({ 
+        message: 'Invalid credentials',
+        code: 'INVALID_CREDENTIALS'
+      });
     }
 
     // Check password
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+      return res.status(400).json({ 
+        message: 'Invalid credentials',
+        code: 'INVALID_CREDENTIALS'
+      });
     }
 
     // Generate tokens
@@ -117,8 +142,11 @@ router.post('/login', [
       }
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Login error:', error);
+    res.status(500).json({ 
+      message: 'Server error during login',
+      code: 'LOGIN_ERROR'
+    });
   }
 });
 
