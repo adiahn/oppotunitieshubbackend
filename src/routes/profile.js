@@ -75,15 +75,9 @@ router.put('/basic', [
 
     await user.save();
     
-    res.json({
-      message: 'Profile updated successfully',
-      user: {
-        name: user.name,
-        bio: user.profile.bio,
-        location: user.profile.location,
-        level: user.level
-      }
-    });
+    // Return full user profile object
+    const updatedUser = await User.findById(req.user.id).select('-password');
+    res.json(updatedUser);
   } catch (error) {
     console.error('Profile update error:', error);
     res.status(500).json({ message: 'Server error updating profile' });
@@ -107,7 +101,10 @@ router.put('/skills', [
     const user = await User.findById(req.user.id);
     user.profile.skills = req.body.skills;
     await user.save();
-    res.json(user.profile.skills);
+    
+    // Return full user profile object
+    const updatedUser = await User.findById(req.user.id).select('-password');
+    res.json(updatedUser);
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }
@@ -134,7 +131,10 @@ router.put('/projects', [
     const user = await User.findById(req.user.id);
     user.profile.projects = req.body.projects;
     await user.save();
-    res.json(user.profile.projects);
+    
+    // Return full user profile object
+    const updatedUser = await User.findById(req.user.id).select('-password');
+    res.json(updatedUser);
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }
@@ -159,7 +159,10 @@ router.put('/achievements', [
     const user = await User.findById(req.user.id);
     user.profile.achievements = req.body.achievements;
     await user.save();
-    res.json(user.profile.achievements);
+    
+    // Return full user profile object
+    const updatedUser = await User.findById(req.user.id).select('-password');
+    res.json(updatedUser);
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }
@@ -186,7 +189,10 @@ router.put('/education', [
     const user = await User.findById(req.user.id);
     user.profile.education = req.body.education;
     await user.save();
-    res.json(user.profile.education);
+    
+    // Return full user profile object
+    const updatedUser = await User.findById(req.user.id).select('-password');
+    res.json(updatedUser);
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }
@@ -212,7 +218,10 @@ router.put('/work-experience', [
     const user = await User.findById(req.user.id);
     user.profile.workExperience = req.body.workExperience;
     await user.save();
-    res.json(user.profile.workExperience);
+    
+    // Return full user profile object
+    const updatedUser = await User.findById(req.user.id).select('-password');
+    res.json(updatedUser);
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }

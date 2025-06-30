@@ -5,9 +5,6 @@ const bcrypt = require('bcryptjs');
 const adminAuth = require('../middleware/adminAuth');
 const User = require('../models/User');
 
-// @route   GET /api/users/me
-// @desc    Get current user
-// @access  Private
 router.get('/me', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-password');
@@ -18,14 +15,10 @@ router.get('/me', auth, async (req, res) => {
   }
 });
 
-// @route   PUT /api/users/profile
-// @desc    Update user profile
-// @access  Private
 router.put('/profile', auth, async (req, res) => {
   try {
     const { name, email } = req.body;
     
-    // Build user object
     const userFields = {};
     if (name) userFields.name = name;
     if (email) userFields.email = email;
@@ -48,9 +41,6 @@ router.put('/profile', auth, async (req, res) => {
   }
 });
 
-// @route   PUT /api/users/:id/reset-password
-// @desc    Admin resets a user's password
-// @access  Private (admin only)
 router.put('/:id/reset-password', adminAuth, async (req, res) => {
   try {
     const { newPassword } = req.body;
