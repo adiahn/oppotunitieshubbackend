@@ -19,8 +19,10 @@ const communityRoutes = require('./routes/community');
 
 const app = express();
 
-// Connect to MongoDB
-connectDB();
+// Connect to MongoDB (only in non-serverless environments)
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  connectDB();
+}
 
 // Security Middleware
 app.use(helmet({
@@ -75,6 +77,22 @@ if (config.nodeEnv === 'development') {
   app.use(morgan('combined'));
 }
 
+// Database connection middleware for serverless environment
+app.use(async (req, res, next) => {
+  try {
+    if (process.env.VERCEL) {
+      await connectDB();
+    }
+    next();
+  } catch (error) {
+    console.error('Database connection error:', error);
+    res.status(500).json({ 
+      message: 'Database connection failed',
+      code: 'DB_CONNECTION_ERROR'
+    });
+  }
+});
+
 // Routes
 app.use('/api/opportunities', opportunityRoutes);
 app.use('/api/admin', adminAuthRoutes);
@@ -116,8 +134,13 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start server
-app.listen(config.port, () => {
-  console.log(`🚀 Server is running on port ${config.port} in ${config.nodeEnv} mode`);
-  console.log(`📊 Health check available at http://localhost:${config.port}/health`);
-}); 
+// Start server (only in non-serverless environments)
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  app.listen(config.port, () => {
+    console.log(`🚀 Server is running on port ${config.port} in ${config.nodeEnv} mode`);
+    console.log(`📊 Health check available at http://localhost:${config.port}/health`);
+  });
+}
+
+// Export for Vercel serverless functions
+module.exports = app;
